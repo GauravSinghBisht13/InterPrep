@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   ArrowRight,
   Check,
@@ -17,25 +18,36 @@ import {
   Zap,
 } from "lucide-react";
 
+import { useAnalyseResume } from "../hooks/analyse";
+
 const ATSResumeCheck = () => {
+  const router = useRouter();
   const fileInputRef = useRef(null);
 
   const [resume, setResume] = useState(null);
   const [jobDescription, setJobDescription] = useState("");
   const [dragActive, setDragActive] = useState(false);
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
+
+  const { mutate, isPending, error } = useAnalyseResume();
+
+  /* =========================================================
+     FILE HANDLING
+  ========================================================= */
 
   const handleFile = (file) => {
     if (!file) return;
 
-    const allowedTypes = [
-      "application/pdf",
-      "application/msword",
-      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-    ];
+    // Backend currently accepts PDF only
+    const allowedTypes = ["application/pdf"];
 
     if (!allowedTypes.includes(file.type)) {
-      alert("Please upload a PDF, DOC, or DOCX file.");
+      alert("Please upload a PDF file only.");
+      return;
+    }
+
+    // Optional frontend size validation
+    if (file.size > 5 * 1024 * 1024) {
+      alert("Resume file must be less than 5 MB.");
       return;
     }
 
@@ -53,21 +65,56 @@ const ATSResumeCheck = () => {
     }
   };
 
+  /* =========================================================
+     ANALYZE RESUME
+  ========================================================= */
+
   const handleAnalyze = () => {
-    if (!resume || !jobDescription.trim()) return;
+    if (!resume || !jobDescription.trim() || isPending) {
+      return;
+    }
 
-    setIsAnalyzing(true);
-
-    // Replace this with your API call
-    setTimeout(() => {
-      setIsAnalyzing(false);
-
-      console.log("Analyze:", {
+    mutate(
+      {
         resume,
         jobDescription,
-      });
-    }, 2000);
+      },
+      {
+        onSuccess: (result) => {
+          console.log("Resume analysis successful:", result);
+
+          /*
+            Store the API result temporarily.
+
+            Example:
+
+            {
+              success: true,
+              data: {
+                ats: {...},
+                matched_skills: [...],
+                missing_skills: [...],
+                ...
+              }
+            }
+          */
+
+          sessionStorage.setItem("interprep_analysis", JSON.stringify(result));
+
+          // Redirect to analysis dashboard
+          router.push("/analysis");
+        },
+
+        onError: (err) => {
+          console.error("Resume analysis failed:", err);
+        },
+      },
+    );
   };
+
+  /* =========================================================
+     REMOVE RESUME
+  ========================================================= */
 
   const removeResume = () => {
     setResume(null);
@@ -77,7 +124,7 @@ const ATSResumeCheck = () => {
     }
   };
 
-  const isReady = resume && jobDescription.trim();
+  const isReady = Boolean(resume && jobDescription.trim());
 
   return (
     <main className="min-h-screen overflow-hidden bg-[#07070a] text-white">
@@ -135,6 +182,7 @@ const ATSResumeCheck = () => {
           <div className="flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.025] px-4 py-2 backdrop-blur">
             <span className="relative flex h-2 w-2">
               <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-violet-400 opacity-40" />
+
               <span className="relative inline-flex h-2 w-2 rounded-full bg-violet-400" />
             </span>
 
@@ -266,7 +314,7 @@ const ATSResumeCheck = () => {
                 </div>
 
                 <span className="hidden rounded-full border border-white/10 bg-white/[0.025] px-3 py-1.5 text-[10px] font-medium text-zinc-600 sm:block">
-                  PDF · DOC · DOCX
+                  PDF · MAX 5MB
                 </span>
               </div>
 
@@ -290,7 +338,7 @@ const ATSResumeCheck = () => {
                   <input
                     ref={fileInputRef}
                     type="file"
-                    accept=".pdf,.doc,.docx"
+                    accept=".pdf,application/pdf"
                     className="hidden"
                     onChange={(e) => handleFile(e.target.files?.[0])}
                   />
@@ -308,7 +356,7 @@ const ATSResumeCheck = () => {
                   </h3>
 
                   <p className="mt-2 text-sm text-zinc-600">
-                    or click anywhere to choose a file from your system
+                    or click anywhere to choose a PDF from your system
                   </p>
 
                   <div className="mt-6 inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/[0.04] px-4 py-2.5 text-xs font-medium text-zinc-300 transition group-hover:border-violet-500/30 group-hover:text-white">
@@ -317,7 +365,7 @@ const ATSResumeCheck = () => {
                   </div>
 
                   <p className="mt-5 text-[10px] font-medium text-zinc-700">
-                    Maximum recommended file size: 5MB
+                    PDF only · Maximum file size: 5MB
                   </p>
                 </div>
               ) : (
@@ -348,8 +396,10 @@ const ATSResumeCheck = () => {
                     </div>
 
                     <button
+                      type="button"
                       onClick={removeResume}
-                      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/[0.03] text-zinc-500 transition hover:border-red-500/20 hover:bg-red-500/10 hover:text-red-400"
+                      disabled={isPending}
+                      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/[0.03] text-zinc-500 transition hover:border-red-500/20 hover:bg-red-500/10 hover:text-red-400 disabled:cursor-not-allowed disabled:opacity-40"
                     >
                       <X size={16} />
                     </button>
@@ -399,11 +449,12 @@ const ATSResumeCheck = () => {
                 <textarea
                   value={jobDescription}
                   onChange={(e) => setJobDescription(e.target.value)}
+                  disabled={isPending}
                   placeholder={`Paste the complete job description here...
 
 Example:
 We are looking for a Frontend Developer with experience in React.js, JavaScript, TypeScript, Redux and REST APIs...`}
-                  className="min-h-[220px] w-full resize-none bg-transparent p-6 text-sm leading-7 text-zinc-300 outline-none placeholder:text-zinc-700"
+                  className="min-h-[220px] w-full resize-none bg-transparent p-6 text-sm leading-7 text-zinc-300 outline-none placeholder:text-zinc-700 disabled:cursor-not-allowed disabled:opacity-60"
                 />
 
                 <div className="flex items-center justify-between border-t border-white/5 bg-white/[0.015] px-5 py-3">
@@ -422,27 +473,53 @@ We are looking for a Frontend Developer with experience in React.js, JavaScript,
             </div>
 
             {/* ===================================================
+                ERROR
+            =================================================== */}
+
+            {error && (
+              <div className="mt-6 rounded-2xl border border-red-500/20 bg-red-500/[0.05] px-5 py-4">
+                <div className="flex items-start gap-3">
+                  <div className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-red-500/10 text-red-400">
+                    <X size={15} />
+                  </div>
+
+                  <div>
+                    <p className="text-sm font-medium text-red-300">
+                      Analysis failed
+                    </p>
+
+                    <p className="mt-1 text-xs leading-5 text-red-400/70">
+                      {error?.message ||
+                        "Something went wrong while analyzing your resume. Please try again."}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* ===================================================
                 ANALYZE BUTTON
             =================================================== */}
 
             <div className="mt-10">
               <button
-                disabled={!isReady || isAnalyzing}
+                type="button"
+                disabled={!isReady || isPending}
                 onClick={handleAnalyze}
                 className={`group relative flex w-full items-center justify-center gap-3 overflow-hidden rounded-2xl px-6 py-4 text-sm font-medium transition duration-300 ${
-                  isReady && !isAnalyzing
+                  isReady && !isPending
                     ? "bg-gradient-to-r from-violet-500 via-fuchsia-500 to-blue-500 text-white shadow-lg shadow-violet-500/20 hover:-translate-y-0.5 hover:shadow-xl hover:shadow-violet-500/20"
                     : "cursor-not-allowed border border-white/5 bg-white/[0.04] text-zinc-600"
                 }`}
               >
                 {/* Button shine */}
 
-                {isReady && !isAnalyzing && (
-                  <span className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent opacity-0 transition group-hover:translate-x-full group-hover:opacity-100" />
+                {isReady && !isPending && (
+                  <span className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/10 to-transparent opacity-0 transition group-hover:translate-x-full group-hover:opacity-100 group-hover:duration-700 group-hover:opacity-100" />
                 )}
 
                 <span className="relative flex items-center gap-3">
-                  {isAnalyzing ? (
+                  {isPending ? (
                     <>
                       <Loader2 size={18} className="animate-spin" />
                       Analyzing your resume...
