@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 
 import { useAnalyseResume } from "../hooks/analyse";
+import AnalysisLoading from "./components/AnalysisLoading";
 
 const ATSResumeCheck = () => {
   const router = useRouter();
@@ -28,7 +29,13 @@ const ATSResumeCheck = () => {
   const [jobDescription, setJobDescription] = useState("");
   const [dragActive, setDragActive] = useState(false);
 
-  const { mutate, isPending, error } = useAnalyseResume();
+  const { mutate, isPending, status, error } = useAnalyseResume();
+
+  console.log("Mutation state:", {
+    isPending,
+    status,
+    error,
+  });
 
   /* =========================================================
      FILE HANDLING
@@ -74,39 +81,66 @@ const ATSResumeCheck = () => {
       return;
     }
 
+    // mutate(
+    //   {
+    //     resume,
+    //     jobDescription,
+    //   },
+    //   {
+    //     onSuccess: (result) => {
+    //       console.log("Resume analysis successful:", result);
+
+    //       /*
+    //         Store the API result temporarily.
+
+    //         Example:
+
+    //         {
+    //           success: true,
+    //           data: {
+    //             ats: {...},
+    //             matched_skills: [...],
+    //             missing_skills: [...],
+    //             ...
+    //           }
+    //         }
+    //       */
+
+    //       sessionStorage.setItem("interprep_analysis", JSON.stringify(result));
+
+    //       // Redirect to analysis dashboard
+    //       router.push("/analysis");
+    //     },
+
+    //     onError: (err) => {
+    //       console.error("Resume analysis failed:", err);
+    //     },
+    //   },
+    // );
     mutate(
       {
         resume,
         jobDescription,
       },
       {
+        onMutate: () => {
+          console.log("🚀 onMutate - mutation started");
+        },
+
         onSuccess: (result) => {
-          console.log("Resume analysis successful:", result);
-
-          /*
-            Store the API result temporarily.
-
-            Example:
-
-            {
-              success: true,
-              data: {
-                ats: {...},
-                matched_skills: [...],
-                missing_skills: [...],
-                ...
-              }
-            }
-          */
+          console.log("✅ onSuccess", result);
 
           sessionStorage.setItem("interprep_analysis", JSON.stringify(result));
 
-          // Redirect to analysis dashboard
           router.push("/analysis");
         },
 
         onError: (err) => {
-          console.error("Resume analysis failed:", err);
+          console.error("❌ onError", err);
+        },
+
+        onSettled: () => {
+          console.log("🏁 onSettled - mutation finished");
         },
       },
     );
@@ -125,6 +159,10 @@ const ATSResumeCheck = () => {
   };
 
   const isReady = Boolean(resume && jobDescription.trim());
+
+  if (isPending) {
+    return <AnalysisLoading />;
+  }
 
   return (
     <main className="min-h-screen overflow-hidden bg-[#07070a] text-white">
