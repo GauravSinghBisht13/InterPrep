@@ -6,22 +6,22 @@ import {
   ArrowRight,
   Check,
   CheckCircle2,
-  FileSearch,
   FileText,
   FileUp,
   Loader2,
   Sparkles,
   UploadCloud,
   X,
-  Target,
-  Search,
-  Zap,
+  BriefcaseBusiness,
+  ScanSearch,
 } from "lucide-react";
 
 import { useAnalyseResume } from "../hooks/analyse";
 import AnalysisLoading from "./components/AnalysisLoading";
 
-const ATSResumeCheck = () => {
+const MAX_FILE_SIZE = 5 * 1024 * 1024;
+
+export default function ATSResumeCheck() {
   const router = useRouter();
   const fileInputRef = useRef(null);
 
@@ -29,127 +29,36 @@ const ATSResumeCheck = () => {
   const [jobDescription, setJobDescription] = useState("");
   const [dragActive, setDragActive] = useState(false);
 
-  const { mutate, isPending, status, error } = useAnalyseResume();
+  const { mutate, isPending, error } = useAnalyseResume();
 
-  console.log("Mutation state:", {
-    isPending,
-    status,
-    error,
-  });
+  const isReady = Boolean(resume && jobDescription.trim());
 
-  /* =========================================================
-     FILE HANDLING
-  ========================================================= */
-
+  // Validate and select resume
   const handleFile = (file) => {
     if (!file) return;
 
-    // Backend currently accepts PDF only
-    const allowedTypes = ["application/pdf"];
-
-    if (!allowedTypes.includes(file.type)) {
+    if (file.type !== "application/pdf") {
       alert("Please upload a PDF file only.");
       return;
     }
 
-    // Optional frontend size validation
-    if (file.size > 5 * 1024 * 1024) {
-      alert("Resume file must be less than 5 MB.");
+    if (file.size > MAX_FILE_SIZE) {
+      alert("Your resume must be smaller than 5 MB.");
       return;
     }
 
     setResume(file);
   };
 
-  const handleDrop = (e) => {
-    e.preventDefault();
+  // Handle drag-and-drop
+  const handleDrop = (event) => {
+    event.preventDefault();
     setDragActive(false);
 
-    const file = e.dataTransfer.files?.[0];
-
-    if (file) {
-      handleFile(file);
-    }
+    handleFile(event.dataTransfer.files?.[0]);
   };
 
-  /* =========================================================
-     ANALYZE RESUME
-  ========================================================= */
-
-  const handleAnalyze = () => {
-    if (!resume || !jobDescription.trim() || isPending) {
-      return;
-    }
-
-    // mutate(
-    //   {
-    //     resume,
-    //     jobDescription,
-    //   },
-    //   {
-    //     onSuccess: (result) => {
-    //       console.log("Resume analysis successful:", result);
-
-    //       /*
-    //         Store the API result temporarily.
-
-    //         Example:
-
-    //         {
-    //           success: true,
-    //           data: {
-    //             ats: {...},
-    //             matched_skills: [...],
-    //             missing_skills: [...],
-    //             ...
-    //           }
-    //         }
-    //       */
-
-    //       sessionStorage.setItem("interprep_analysis", JSON.stringify(result));
-
-    //       // Redirect to analysis dashboard
-    //       router.push("/analysis");
-    //     },
-
-    //     onError: (err) => {
-    //       console.error("Resume analysis failed:", err);
-    //     },
-    //   },
-    // );
-    mutate(
-      {
-        resume,
-        jobDescription,
-      },
-      {
-        onMutate: () => {
-          console.log("🚀 onMutate - mutation started");
-        },
-
-        onSuccess: (result) => {
-          console.log("✅ onSuccess", result);
-
-          sessionStorage.setItem("interprep_analysis", JSON.stringify(result));
-
-          router.push("/analysis");
-        },
-
-        onError: (err) => {
-          console.error("❌ onError", err);
-        },
-
-        onSettled: () => {
-          console.log("🏁 onSettled - mutation finished");
-        },
-      },
-    );
-  };
-
-  /* =========================================================
-     REMOVE RESUME
-  ========================================================= */
-
+  // Remove selected resume
   const removeResume = () => {
     setResume(null);
 
@@ -158,29 +67,42 @@ const ATSResumeCheck = () => {
     }
   };
 
-  const isReady = Boolean(resume && jobDescription.trim());
+  // Call existing API through TanStack Query
+  const handleAnalyze = () => {
+    if (!isReady || isPending) return;
 
+    mutate(
+      {
+        resume,
+        jobDescription,
+      },
+      {
+        onSuccess: (result) => {
+          sessionStorage.setItem("interprep_analysis", JSON.stringify(result));
+
+          router.push("/analysis");
+        },
+
+        onError: (err) => {
+          console.error("Resume analysis failed:", err);
+        },
+      },
+    );
+  };
+
+  // Preserve your existing loading component
   if (isPending) {
     return <AnalysisLoading />;
   }
 
   return (
-    <main className="min-h-screen overflow-hidden bg-[#07070a] text-white">
-      {/* =========================================================
-          BACKGROUND
-      ========================================================= */}
+    <main className="relative flex min-h-dvh flex-col overflow-x-hidden bg-[#07070a] text-white lg:h-dvh lg:min-h-0 lg:overflow-hidden">
+      {/* Ambient background */}
+      <div className="pointer-events-none absolute inset-0 overflow-hidden">
+        <div className="absolute left-1/2 -top-40 h-[650px] w-[900px] -translate-x-1/2 rounded-full bg-violet-600/15 blur-[160px]" />
+        <div className="absolute -right-24 top-1/3 h-80 w-80 rounded-full bg-blue-500/10 blur-[150px]" />
+        <div className="absolute bottom-0 left-1/3 h-64 w-64 rounded-full bg-violet-500/8 blur-[150px]" />
 
-      <div className="pointer-events-none fixed inset-0 -z-10 overflow-hidden">
-        {/* Main violet glow */}
-        <div className="absolute left-1/2 top-[-320px] h-[650px] w-[900px] -translate-x-1/2 rounded-full bg-violet-600/15 blur-[160px]" />
-
-        {/* Blue right glow */}
-        <div className="absolute right-[-250px] top-[500px] h-[550px] w-[550px] rounded-full bg-blue-500/10 blur-[150px]" />
-
-        {/* Violet left glow */}
-        <div className="absolute left-[-300px] top-[950px] h-[500px] w-[500px] rounded-full bg-violet-500/8 blur-[150px]" />
-
-        {/* Subtle grid */}
         <div
           className="absolute inset-0 opacity-[0.025]"
           style={{
@@ -191,510 +113,294 @@ const ATSResumeCheck = () => {
         />
       </div>
 
-      {/* =========================================================
-          HEADER
-      ========================================================= */}
-
-      <header className="sticky top-0 z-50 border-b border-white/5 bg-[#07070a]/80 backdrop-blur-xl">
-        <div className="mx-auto flex w-[92%] max-w-[1400px] items-center justify-between py-4">
-          {/* Logo */}
-
-          <div className="flex items-center gap-3">
+      {/* Header */}
+      <header className="relative z-10 shrink-0    px-5 pt-5 sm:px-8 sm:pt-6 lg:px-12 backdrop-blur-xl">
+        <div className="mx-auto flex max-w-[1440px] items-center justify-between pb-4">
+          <a href="/" className="group flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-violet-500 to-blue-500 shadow-lg shadow-violet-500/20">
-              <Sparkles size={18} />
+              <Sparkles size={19} />
             </div>
 
             <div>
-              <h1 className="text-lg font-semibold tracking-tight">
+              <h1 className="text-lg font-bold tracking-tight text-white">
                 Interprep
               </h1>
 
-              <p className="hidden text-[9px] font-medium uppercase tracking-[0.2em] text-zinc-600 sm:block">
-                AI Career Intelligence
+              <p className="text-[9px] font-semibold uppercase tracking-[0.2em] text-zinc-500">
+                AI Career intelligence
               </p>
             </div>
-          </div>
+          </a>
 
-          {/* ATS Status */}
-
-          <div className="flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.025] px-4 py-2 backdrop-blur">
+          <div className="flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.025] px-3 py-2 sm:px-4 backdrop-blur">
             <span className="relative flex h-2 w-2">
-              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-violet-400 opacity-40" />
-
-              <span className="relative inline-flex h-2 w-2 rounded-full bg-violet-400" />
+              <span className="absolute h-full w-full animate-ping rounded-full bg-violet-400 opacity-40" />
+              <span className="relative h-2 w-2 rounded-full bg-violet-400" />
             </span>
 
-            <span className="text-[10px] font-medium uppercase tracking-wider text-zinc-400">
-              ATS Analysis
+            <span className="text-[10px] font-semibold tracking-wide text-zinc-400 sm:text-xs">
+              RESUME ANALYZER
             </span>
           </div>
         </div>
       </header>
 
-      {/* =========================================================
-          MAIN
-      ========================================================= */}
+      {/* Main content */}
+      <section className="relative z-10 mx-auto flex w-full max-w-[1440px] flex-1 flex-col justify-center px-4 py-7 sm:px-8 sm:py-8 lg:min-h-0 lg:px-12 lg:py-4">
+        {/* Heading */}
+        <div className="mb-6 text-center sm:mb-8 lg:mb-6">
+          <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.03] px-3 py-1.5 backdrop-blur">
+            <ScanSearch size={13} className="text-violet-400" />
 
-      <main className="mx-auto w-[92%] max-w-[1100px] pb-24">
-        {/* =======================================================
-            HERO
-        ======================================================= */}
-
-        <section className="relative pb-14 pt-20 text-center sm:pt-24">
-          {/* Glow */}
-
-          <div className="pointer-events-none absolute left-1/2 top-[-100px] h-[300px] w-[600px] -translate-x-1/2 rounded-full bg-violet-500/10 blur-[120px]" />
-
-          {/* Badge */}
-
-          <div className="relative mx-auto mb-6 flex w-fit items-center gap-2 rounded-full border border-white/10 bg-white/[0.03] px-4 py-2 backdrop-blur">
-            <Sparkles size={13} className="text-violet-400" />
-
-            <span className="text-[10px] font-medium uppercase tracking-[0.18em] text-zinc-400">
-              Resume Intelligence
+            <span className="text-[10px] font-semibold uppercase tracking-[0.16em] text-zinc-400">
+              Your next opportunity starts here
             </span>
           </div>
 
-          {/* Heading */}
-
-          <h1 className="relative text-4xl font-semibold leading-[1.08] tracking-tight sm:text-5xl lg:text-6xl">
-            Check your resume's
-            <span className="block bg-gradient-to-r from-violet-400 via-fuchsia-400 to-blue-400 bg-clip-text text-transparent">
-              ATS compatibility.
+          <h2 className="text-3xl font-semibold tracking-tight text-white sm:text-4xl lg:text-[42px] lg:leading-tight">
+            Make your resume{" "}
+            <span className="bg-gradient-to-r from-violet-400 via-fuchsia-400 to-blue-400 bg-clip-text text-transparent">
+              stand out.
             </span>
-          </h1>
+          </h2>
 
-          {/* Description */}
-
-          <p className="relative mx-auto mt-6 max-w-2xl text-sm leading-7 text-zinc-500 sm:text-base">
-            Upload your resume and add the job description. Interprep compares
-            both to identify your ATS score, missing keywords, strengths, and
-            opportunities to improve.
+          <p className="mx-auto mt-2 max-w-xl text-xs leading-5 text-zinc-500 sm:text-sm">
+            Match your experience to the role and discover what to improve.
           </p>
+        </div>
 
-          {/* Small stats */}
+        {/* Form card */}
+        <div className="relative mx-auto w-full max-w-[1180px] overflow-hidden rounded-[26px] border border-white/10 bg-[#0d0d12]/95 p-3 shadow-2xl shadow-black/40 backdrop-blur-xl sm:p-5 lg:p-6">
+          {/* Accent line */}
+          <div className="absolute left-8 right-8 top-0 h-px bg-gradient-to-r from-transparent via-violet-500 to-transparent" />
 
-          <div className="relative mx-auto mt-8 flex flex-wrap items-center justify-center gap-2">
-            <MiniBadge icon={<Target size={12} />} text="ATS Score" />
-
-            <MiniBadge icon={<Search size={12} />} text="Keyword Matching" />
-
-            <MiniBadge icon={<Zap size={12} />} text="AI Suggestions" />
-          </div>
-        </section>
-
-        {/* =======================================================
-            MAIN ATS PANEL
-        ======================================================= */}
-
-        <section className="relative overflow-hidden rounded-[32px] border border-white/10 bg-[#0d0d12] shadow-2xl shadow-black/30">
-          {/* Top gradient line */}
-
-          <div className="absolute left-0 right-0 top-0 h-px bg-gradient-to-r from-transparent via-violet-500 to-transparent" />
-
-          {/* Ambient glow */}
-
-          <div className="pointer-events-none absolute right-[-180px] top-[-180px] h-[400px] w-[400px] rounded-full bg-violet-500/8 blur-[120px]" />
-
-          <div className="relative p-5 sm:p-8 lg:p-10">
-            {/* ===================================================
-                STEPS
-            =================================================== */}
-
-            <div className="mb-10 flex justify-center">
-              <div className="flex items-center">
-                {/* STEP 1 */}
-
-                <StepIndicator
-                  active={!!resume}
-                  number="01"
-                  label="Upload Resume"
-                />
-
-                {/* Connector */}
-
-                <div
-                  className={`mx-4 h-px w-10 transition sm:mx-7 sm:w-20 ${
-                    resume ? "bg-violet-500/60" : "bg-white/10"
-                  }`}
-                />
-
-                {/* STEP 2 */}
-
-                <StepIndicator
-                  active={!!jobDescription.trim()}
-                  number="02"
-                  label="Job Description"
-                />
-              </div>
-            </div>
-
-            {/* ===================================================
-                STEP 1
-            =================================================== */}
-
-            <div>
-              {/* Heading */}
-
-              <div className="mb-5 flex items-end justify-between">
-                <div>
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-violet-500/10 text-[10px] font-semibold text-violet-300">
-                      01
-                    </div>
-
-                    <h2 className="text-xl font-medium">Upload your resume</h2>
+          <div className="grid grid-cols-1 gap-3 lg:grid-cols-[1fr_1px_1fr] lg:gap-5">
+            {/* Step 1: Upload resume */}
+            <section className="flex min-w-0 flex-col rounded-[20px] border border-white/10 bg-white/[0.015] p-4 sm:p-5 lg:min-h-[330px] lg:p-6">
+              <div className="mb-4 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-violet-500/10 text-violet-400">
+                    <FileText size={17} />
                   </div>
 
-                  <p className="mt-2 text-xs text-zinc-600 sm:text-sm">
-                    Upload the latest version of your resume.
-                  </p>
+                  <div>
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-violet-400">
+                      Step 01
+                    </p>
+
+                    <h3 className="text-sm font-semibold text-zinc-200 sm:text-base">
+                      Upload your resume
+                    </h3>
+                  </div>
                 </div>
 
-                <span className="hidden rounded-full border border-white/10 bg-white/[0.025] px-3 py-1.5 text-[10px] font-medium text-zinc-600 sm:block">
-                  PDF · MAX 5MB
-                </span>
+                {resume && (
+                  <CheckCircle2
+                    size={19}
+                    className="shrink-0 text-emerald-400"
+                  />
+                )}
               </div>
 
-              {/* Upload */}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".pdf,application/pdf"
+                className="hidden"
+                onChange={(event) => handleFile(event.target.files?.[0])}
+              />
 
               {!resume ? (
                 <div
-                  onDragOver={(e) => {
-                    e.preventDefault();
+                  onDragOver={(event) => {
+                    event.preventDefault();
                     setDragActive(true);
                   }}
                   onDragLeave={() => setDragActive(false)}
                   onDrop={handleDrop}
                   onClick={() => fileInputRef.current?.click()}
-                  className={`group cursor-pointer rounded-[26px] border border-dashed p-8 text-center transition duration-300 sm:p-12 ${
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" || event.key === " ") {
+                      event.preventDefault();
+                      fileInputRef.current?.click();
+                    }
+                  }}
+                  className={`group flex flex-1 cursor-pointer flex-col items-center justify-center rounded-2xl border border-dashed px-4 py-8 text-center transition duration-200 lg:py-5 ${
                     dragActive
                       ? "border-violet-400 bg-violet-500/[0.08]"
                       : "border-white/10 bg-white/[0.015] hover:border-violet-500/40 hover:bg-violet-500/[0.035]"
                   }`}
                 >
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept=".pdf,application/pdf"
-                    className="hidden"
-                    onChange={(e) => handleFile(e.target.files?.[0])}
-                  />
-
-                  {/* Upload icon */}
-
-                  <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.04] text-violet-400 shadow-xl shadow-black/20 transition duration-300 group-hover:-translate-y-1 group-hover:border-violet-500/30 group-hover:bg-violet-500/10">
-                    <UploadCloud size={27} />
+                  <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.04] text-violet-400 transition group-hover:scale-105 group-hover:border-violet-500/30 group-hover:bg-violet-500/10">
+                    <UploadCloud size={25} />
                   </div>
 
-                  <h3 className="mt-5 text-lg font-medium">
+                  <p className="mt-4 text-sm font-semibold text-zinc-200">
                     {dragActive
                       ? "Drop your resume here"
                       : "Drag & drop your resume"}
-                  </h3>
-
-                  <p className="mt-2 text-sm text-zinc-600">
-                    or click anywhere to choose a PDF from your system
                   </p>
 
-                  <div className="mt-6 inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/[0.04] px-4 py-2.5 text-xs font-medium text-zinc-300 transition group-hover:border-violet-500/30 group-hover:text-white">
-                    <FileUp size={14} className="text-violet-400" />
-                    Browse Files
-                  </div>
+                  <p className="mt-1.5 text-xs text-zinc-500">
+                    or choose a PDF from your computer
+                  </p>
 
-                  <p className="mt-5 text-[10px] font-medium text-zinc-700">
-                    PDF only · Maximum file size: 5MB
+                  <span className="mt-4 inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/[0.04] px-4 py-2.5 text-xs font-semibold text-zinc-300 transition group-hover:border-violet-500/30 group-hover:text-white">
+                    <FileUp size={14} className="text-violet-400" />
+                    Browse files
+                  </span>
+
+                  <p className="mt-3 text-[10px] text-zinc-600">
+                    PDF format · Maximum 5 MB
                   </p>
                 </div>
               ) : (
-                /* Uploaded Resume */
-
-                <div className="rounded-[26px] border border-emerald-500/20 bg-emerald-500/[0.035] p-5 sm:p-6">
-                  <div className="flex items-center gap-4">
-                    <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-emerald-500/20 bg-emerald-500/10 text-emerald-400">
-                      <FileText size={23} />
-                    </div>
-
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2">
-                        <p className="truncate text-sm font-medium text-zinc-200">
-                          {resume.name}
-                        </p>
-
-                        <CheckCircle2
-                          size={15}
-                          className="shrink-0 text-emerald-400"
-                        />
-                      </div>
-
-                      <p className="mt-1 text-xs text-zinc-600">
-                        {(resume.size / 1024 / 1024).toFixed(2)} MB · Ready for
-                        analysis
-                      </p>
-                    </div>
-
-                    <button
-                      type="button"
-                      onClick={removeResume}
-                      disabled={isPending}
-                      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/[0.03] text-zinc-500 transition hover:border-red-500/20 hover:bg-red-500/10 hover:text-red-400 disabled:cursor-not-allowed disabled:opacity-40"
-                    >
-                      <X size={16} />
-                    </button>
+                <div className="flex flex-1 flex-col items-center justify-center rounded-2xl border border-emerald-500/20 bg-emerald-500/[0.035] px-4 py-7 text-center lg:py-5">
+                  <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-emerald-500/20 bg-emerald-500/10 text-emerald-400">
+                    <FileText size={25} />
                   </div>
+
+                  <p className="mt-3 max-w-full truncate text-sm font-semibold text-zinc-200">
+                    {resume.name}
+                  </p>
+
+                  <p className="mt-1 text-xs text-zinc-500">
+                    {(resume.size / 1024 / 1024).toFixed(2)} MB · Ready to
+                    analyze
+                  </p>
+
+                  <button
+                    type="button"
+                    onClick={removeResume}
+                    className="mt-4 inline-flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-xs font-medium text-zinc-400 transition hover:border-red-500/20 hover:bg-red-500/10 hover:text-red-400"
+                  >
+                    <X size={13} />
+                    Remove file
+                  </button>
                 </div>
               )}
-            </div>
+            </section>
 
-            {/* ===================================================
-                DIVIDER
-            =================================================== */}
+            {/* Desktop divider */}
+            <div className="hidden bg-white/5 lg:block" />
 
-            <div className="my-10 flex items-center gap-4">
-              <div className="h-px flex-1 bg-white/5" />
-
-              <span className="text-[9px] font-medium uppercase tracking-[0.2em] text-zinc-700">
-                Next step
-              </span>
-
-              <div className="h-px flex-1 bg-white/5" />
-            </div>
-
-            {/* ===================================================
-                STEP 2
-            =================================================== */}
-
-            <div>
-              <div className="mb-5">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-500/10 text-[10px] font-semibold text-blue-300">
-                    02
-                  </div>
-
-                  <h2 className="text-xl font-medium">
-                    Paste the job description
-                  </h2>
+            {/* Step 2: Job description */}
+            <section className="flex min-w-0 flex-col rounded-[20px] border border-white/10 bg-white/[0.015] p-4 sm:p-5 lg:min-h-[330px] lg:p-6">
+              <div className="mb-4 flex items-center gap-3">
+                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-500/10 text-blue-400">
+                  <BriefcaseBusiness size={17} />
                 </div>
 
-                <p className="mt-2 text-xs text-zinc-600 sm:text-sm">
-                  Add the job description you're applying for.
-                </p>
+                <div>
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-blue-400">
+                    Step 02
+                  </p>
+
+                  <h3 className="text-sm font-semibold text-zinc-200 sm:text-base">
+                    Add the job description
+                  </h3>
+                </div>
               </div>
 
-              {/* Textarea */}
-
-              <div className="overflow-hidden rounded-[26px] border border-white/10 bg-black/20 transition focus-within:border-violet-500/30 focus-within:bg-black/30 focus-within:ring-4 focus-within:ring-violet-500/5">
+              <div className="flex flex-1 flex-col overflow-hidden rounded-2xl border border-white/10 bg-black/20 transition focus-within:border-violet-500/30 focus-within:bg-black/30 focus-within:ring-4 focus-within:ring-violet-500/5">
                 <textarea
                   value={jobDescription}
-                  onChange={(e) => setJobDescription(e.target.value)}
+                  onChange={(event) => setJobDescription(event.target.value)}
                   disabled={isPending}
-                  placeholder={`Paste the complete job description here...
-
-Example:
-We are looking for a Frontend Developer with experience in React.js, JavaScript, TypeScript, Redux and REST APIs...`}
-                  className="min-h-[220px] w-full resize-none bg-transparent p-6 text-sm leading-7 text-zinc-300 outline-none placeholder:text-zinc-700 disabled:cursor-not-allowed disabled:opacity-60"
+                  placeholder={`Paste the job description here...\n\nFor example, required skills, responsibilities, qualifications and experience.`}
+                  className="min-h-[200px] w-full flex-1 resize-y bg-transparent p-4 text-sm leading-6 text-zinc-300 outline-none placeholder:text-zinc-700 disabled:cursor-not-allowed disabled:opacity-60 lg:min-h-0 lg:resize-none"
                 />
 
-                <div className="flex items-center justify-between border-t border-white/5 bg-white/[0.015] px-5 py-3">
-                  <span className="text-[10px] font-medium text-zinc-700">
+                <div className="flex items-center justify-between border-t border-white/5 bg-white/[0.015] px-4 py-2.5">
+                  <span className="text-[10px] text-zinc-600">
                     {jobDescription.length} characters
                   </span>
 
                   {jobDescription.trim() && (
-                    <div className="flex items-center gap-1.5 text-[10px] font-medium text-emerald-400">
-                      <CheckCircle2 size={13} />
-                      Job description added
-                    </div>
+                    <span className="inline-flex items-center gap-1 text-[10px] font-medium text-emerald-400">
+                      <CheckCircle2 size={12} />
+                      Description added
+                    </span>
                   )}
                 </div>
               </div>
-            </div>
 
-            {/* ===================================================
-                ERROR
-            =================================================== */}
-
-            {error && (
-              <div className="mt-6 rounded-2xl border border-red-500/20 bg-red-500/[0.05] px-5 py-4">
-                <div className="flex items-start gap-3">
-                  <div className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-red-500/10 text-red-400">
-                    <X size={15} />
-                  </div>
-
-                  <div>
-                    <p className="text-sm font-medium text-red-300">
-                      Analysis failed
-                    </p>
-
-                    <p className="mt-1 text-xs leading-5 text-red-400/70">
-                      {error?.message ||
-                        "Something went wrong while analyzing your resume. Please try again."}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* ===================================================
-                ANALYZE BUTTON
-            =================================================== */}
-
-            <div className="mt-10">
-              <button
-                type="button"
-                disabled={!isReady || isPending}
-                onClick={handleAnalyze}
-                className={`group relative flex w-full items-center justify-center gap-3 overflow-hidden rounded-2xl px-6 py-4 text-sm font-medium transition duration-300 ${
-                  isReady && !isPending
-                    ? "bg-gradient-to-r from-violet-500 via-fuchsia-500 to-blue-500 text-white shadow-lg shadow-violet-500/20 hover:-translate-y-0.5 hover:shadow-xl hover:shadow-violet-500/20"
-                    : "cursor-not-allowed border border-white/5 bg-white/[0.04] text-zinc-600"
-                }`}
-              >
-                {/* Button shine */}
-
-                {isReady && !isPending && (
-                  <span className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/10 to-transparent opacity-0 transition group-hover:translate-x-full group-hover:opacity-100 group-hover:duration-700 group-hover:opacity-100" />
-                )}
-
-                <span className="relative flex items-center gap-3">
-                  {isPending ? (
-                    <>
-                      <Loader2 size={18} className="animate-spin" />
-                      Analyzing your resume...
-                    </>
-                  ) : (
-                    <>
-                      <Sparkles size={17} />
-                      Analyze My Resume
-                      <ArrowRight
-                        size={17}
-                        className="transition group-hover:translate-x-1"
-                      />
-                    </>
-                  )}
-                </span>
-              </button>
-
-              <p className="mt-4 text-center text-[10px] leading-5 text-zinc-700">
-                Your resume will be analyzed against the job description to
-                generate your personalized ATS report.
+              <p className="mt-2 text-[10px] leading-4 text-zinc-600">
+                Include the complete description for a more useful comparison.
               </p>
-            </div>
+            </section>
           </div>
-        </section>
 
-        {/* =======================================================
-            FEATURES
-        ======================================================= */}
-
-        <div className="mt-5 grid gap-3 sm:grid-cols-3">
-          {[
-            {
-              icon: CheckCircle2,
-              title: "ATS Score",
-              text: "Know your compatibility",
-            },
-            {
-              icon: FileSearch,
-              title: "Missing Keywords",
-              text: "Find what you're missing",
-            },
-            {
-              icon: Sparkles,
-              title: "AI Suggestions",
-              text: "Get actionable improvements",
-            },
-          ].map(({ icon: Icon, title, text }) => (
+          {/* Error message */}
+          {error && (
             <div
-              key={title}
-              className="group flex items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.02] p-4 transition duration-300 hover:-translate-y-0.5 hover:border-violet-500/20 hover:bg-white/[0.035]"
+              role="alert"
+              className="mt-4 flex items-start gap-2.5 rounded-xl border border-red-500/20 bg-red-500/[0.05] px-4 py-3 text-sm text-red-300"
             >
-              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/[0.03] text-zinc-500 transition group-hover:text-violet-400">
-                <Icon size={16} />
-              </div>
+              <X size={16} className="mt-0.5 shrink-0 text-red-400" />
 
               <div>
-                <p className="text-xs font-medium text-zinc-300">{title}</p>
+                <p className="font-semibold text-red-200">Analysis failed</p>
 
-                <p className="mt-0.5 text-[10px] text-zinc-700">{text}</p>
+                <p className="mt-1 text-xs leading-5 text-red-400/80">
+                  {error.message || "Something went wrong. Please try again."}
+                </p>
               </div>
             </div>
-          ))}
+          )}
+
+          {/* Analyze button */}
+          <div className="mx-auto mt-4 max-w-[560px] sm:mt-5">
+            <button
+              type="button"
+              onClick={handleAnalyze}
+              disabled={!isReady || isPending}
+              className={`group relative flex w-full items-center justify-center gap-3 overflow-hidden rounded-xl px-5 py-3.5 text-sm font-semibold transition duration-300 ${
+                isReady && !isPending
+                  ? "bg-gradient-to-r from-violet-500 via-fuchsia-500 to-blue-500 text-white shadow-lg shadow-violet-500/20 hover:-translate-y-0.5 hover:shadow-xl hover:shadow-violet-500/20"
+                  : "cursor-not-allowed border border-white/5 bg-white/[0.04] text-zinc-600"
+              }`}
+            >
+              {isReady && !isPending && (
+                <span className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/10 to-transparent opacity-0 transition group-hover:translate-x-full group-hover:opacity-100 group-hover:duration-700" />
+              )}
+
+              <span className="relative flex items-center gap-3">
+                {isPending ? (
+                  <>
+                    <Loader2 size={17} className="animate-spin" />
+                    Analyzing your resume...
+                  </>
+                ) : (
+                  <>
+                    <Sparkles size={17} />
+                    Analyze my resume
+                    <ArrowRight
+                      size={17}
+                      className="transition group-hover:translate-x-1"
+                    />
+                  </>
+                )}
+              </span>
+            </button>
+
+            <p className="mt-2 text-center text-[10px] leading-4 text-zinc-600">
+              Your resume is compared with the job description to generate your
+              personalized match report.
+            </p>
+          </div>
         </div>
 
-        {/* =======================================================
-            FOOTNOTE
-        ======================================================= */}
-
-        <div className="mt-10 flex items-center justify-center gap-2 text-[10px] text-zinc-700">
-          <FileSearch size={12} />
-          Resume Intelligence powered by Interprep AI
+        {/* Trust note */}
+        <div className="mt-4 flex items-center justify-center gap-2 text-[10px] text-zinc-600 lg:mt-3">
+          <span className="flex h-5 w-5 items-center justify-center rounded-full bg-violet-500/10 text-violet-400">
+            <Check size={12} />
+          </span>
+          Evidence-based insights · Actionable recommendations
         </div>
-      </main>
-
-      {/* =========================================================
-          FOOTER
-      ========================================================= */}
-
-      <footer className="border-t border-white/5 bg-[#07070a] py-6">
-        <div className="mx-auto flex w-[92%] max-w-[1200px] items-center justify-center">
-          <p className="text-center text-xs text-zinc-700">
-            © 2026 Interprep · Crafted by{" "}
-            <span className="font-medium text-zinc-400">
-              Gaurav Singh Bisht
-            </span>{" "}
-            · All rights reserved.
-          </p>
-        </div>
-      </footer>
+      </section>
     </main>
   );
-};
-
-/* =============================================================
-   STEP INDICATOR
-============================================================= */
-
-function StepIndicator({ active, number, label }) {
-  return (
-    <div className="flex items-center gap-3">
-      <div
-        className={`flex h-10 w-10 items-center justify-center rounded-full text-sm font-medium transition ${
-          active
-            ? "bg-gradient-to-br from-violet-500 to-blue-500 text-white shadow-lg shadow-violet-500/20"
-            : "border border-white/10 bg-white/[0.03] text-zinc-600"
-        }`}
-      >
-        {active ? <Check size={17} /> : number}
-      </div>
-
-      <div className="hidden sm:block">
-        <p
-          className={`text-[10px] font-medium uppercase tracking-wider ${
-            active ? "text-violet-400" : "text-zinc-700"
-          }`}
-        >
-          Step {number}
-        </p>
-
-        <p className="text-xs font-medium text-zinc-400">{label}</p>
-      </div>
-    </div>
-  );
 }
-
-/* =============================================================
-   MINI BADGE
-============================================================= */
-
-function MiniBadge({ icon, text }) {
-  return (
-    <div className="flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.025] px-3 py-1.5 text-[10px] text-zinc-600">
-      <span className="text-violet-400">{icon}</span>
-
-      {text}
-    </div>
-  );
-}
-
-export default ATSResumeCheck;
