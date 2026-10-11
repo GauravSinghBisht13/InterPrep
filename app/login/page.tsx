@@ -11,20 +11,29 @@ import {
   Sparkles,
 } from "lucide-react";
 
+import { useRouter } from "next/navigation";
+import { useLogin } from "../hooks/useLogin";
+
 export default function Login() {
   const [showPassword, setShowPassword] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
+  const router = useRouter();
+
+  const { mutate: login, isPending, error } = useLogin();
+
   const handleLogin = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
-    // TODO:
-    // Connect your login API here
-    console.log({
-      email,
-      password,
-    });
+    login(
+      { email, password },
+      {
+        onSuccess: () => {
+          router.push("/dashboard");
+        },
+      },
+    );
   };
 
   return (

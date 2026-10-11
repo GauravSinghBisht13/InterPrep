@@ -1,51 +1,126 @@
 "use client";
 
-import React, { useRef, useState } from "react";
+import React, { useState } from "react";
 import { useRouter } from "next/navigation";
-import html2canvas from "html2canvas";
-import jsPDF from "jspdf";
-import generateAnalysisReport from "../../utils/generateAnalysisReport";
-
-
 import {
-  AlertCircle,
+  Sparkles,
   ArrowDownToLine,
   ArrowUpRight,
-  Award,
-  BarChart3,
-  BriefcaseBusiness,
   Check,
   CheckCircle2,
-  ChevronRight,
   CircleAlert,
-  Code2,
+  X,
+  Target,
+  TrendingUp,
+  BriefcaseBusiness,
   GraduationCap,
   Lightbulb,
   Loader2,
-  Minus,
   ShieldCheck,
-  Sparkles,
-  Target,
-  TrendingUp,
-  X,
+  FileText,
   Zap,
+  ChevronRight,
+  BarChart3,
+  RotateCcw,
 } from "lucide-react";
+
+import generateAnalysisReport from "../../utils/generateAnalysisReport";
 
 /* =========================================================
    Small reusable components
 ========================================================= */
 
-function ProgressBar({ value = 0, className = "" }) {
+function Panel({ children, className = "" }) {
+  return (
+    <section
+      className={`rounded-2xl border border-white/[0.08] bg-[#101019] ${className}`}
+    >
+      {children}
+    </section>
+  );
+}
+
+function SectionTitle({ icon: Icon, title, subtitle, action }) {
+  return (
+    <div className="mb-5 flex items-start justify-between gap-3">
+      <div className="flex items-start gap-3">
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-violet-400/10 bg-violet-500/10">
+          <Icon size={17} className="text-violet-300" />
+        </div>
+
+        <div>
+          <h2 className="text-sm font-semibold text-white">{title}</h2>
+          {subtitle && (
+            <p className="mt-1 text-xs leading-5 text-slate-500">{subtitle}</p>
+          )}
+        </div>
+      </div>
+
+      {action}
+    </div>
+  );
+}
+
+function ProgressBar({ value = 0 }) {
+  const safeValue = Math.min(Math.max(Number(value) || 0, 0), 100);
+
+  return (
+    <div className="h-1.5 overflow-hidden rounded-full bg-white/[0.07]">
+      <div
+        className="h-full rounded-full bg-gradient-to-r from-violet-500 to-cyan-400 transition-all duration-700"
+        style={{ width: `${safeValue}%` }}
+      />
+    </div>
+  );
+}
+
+function ScoreRing({ score }) {
+  const safeScore = Math.min(Math.max(Number(score) || 0, 0), 100);
+
   return (
     <div
-      className={`h-2 w-full overflow-hidden rounded-full bg-slate-800 ${className}`}
+      className="relative flex h-36 w-36 shrink-0 items-center justify-center rounded-full"
+      style={{
+        background: `conic-gradient(#8b5cf6 ${safeScore * 3.6}deg, #252535 0deg)`,
+      }}
     >
+      <div className="absolute inset-[7px] rounded-full bg-[#101019]" />
+
+      <div className="relative text-center">
+        <div className="text-4xl font-bold tracking-tight text-white">
+          {safeScore}
+          <span className="text-base text-slate-500">/100</span>
+        </div>
+        <p className="mt-1 text-[10px] font-medium uppercase tracking-[0.18em] text-slate-500">
+          Match score
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function MiniStat({ icon: Icon, label, value, tone = "violet" }) {
+  const tones = {
+    green: "bg-emerald-500/10 text-emerald-400",
+    amber: "bg-amber-500/10 text-amber-400",
+    red: "bg-red-500/10 text-red-400",
+    violet: "bg-violet-500/10 text-violet-300",
+  };
+
+  return (
+    <div className="flex min-w-0 items-center gap-3 rounded-xl border border-white/[0.07] bg-white/[0.02] p-3">
       <div
-        className="h-full rounded-full bg-gradient-to-r from-violet-500 via-indigo-500 to-cyan-400 transition-all duration-700"
-        style={{
-          width: `${Math.min(Math.max(value, 0), 100)}%`,
-        }}
-      />
+        className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${tones[tone]}`}
+      >
+        <Icon size={17} />
+      </div>
+
+      <div className="min-w-0">
+        <p className="text-xl font-semibold leading-tight text-white">
+          {value}
+        </p>
+        <p className="mt-1 truncate text-[11px] text-slate-500">{label}</p>
+      </div>
     </div>
   );
 }
@@ -55,133 +130,138 @@ function StatusBadge({ status }) {
     matched: {
       label: "Matched",
       icon: Check,
-      classes: "border-emerald-500/20 bg-emerald-500/10 text-emerald-400",
+      className: "bg-emerald-500/10 text-emerald-400",
     },
-
     partially_matched: {
       label: "Partial",
-      icon: Minus,
-      classes: "border-amber-500/20 bg-amber-500/10 text-amber-400",
+      icon: CircleAlert,
+      className: "bg-amber-500/10 text-amber-400",
     },
-
     missing: {
       label: "Missing",
       icon: X,
-      classes: "border-red-500/20 bg-red-500/10 text-red-400",
+      className: "bg-red-500/10 text-red-400",
     },
   };
 
   const item = config[status] || config.missing;
-
   const Icon = item.icon;
 
   return (
     <span
-      className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium ${item.classes}`}
+      className={`inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-1 text-[10px] font-medium ${item.className}`}
     >
-      <Icon size={12} />
+      <Icon size={11} />
       {item.label}
     </span>
   );
 }
 
-function SectionHeader({ icon: Icon, title, subtitle }) {
+function SkillGroup({ title, skills, tone = "green" }) {
+  const colors = {
+    green: "border-emerald-500/15 bg-emerald-500/[0.035]",
+    amber: "border-amber-500/15 bg-amber-500/[0.035]",
+    red: "border-red-500/15 bg-red-500/[0.035]",
+  };
+
+  const textColors = {
+    green: "text-emerald-400",
+    amber: "text-amber-400",
+    red: "text-red-400",
+  };
+
+  const getSkillName = (skill) =>
+    typeof skill === "string"
+      ? skill
+      : skill?.skill || skill?.name || "Unknown skill";
+
   return (
-    <div className="mb-5 flex items-start gap-3">
-      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/[0.04]">
-        <Icon size={18} className="text-violet-400" />
+    <div className={`rounded-xl border p-4 ${colors[tone]}`}>
+      <div className="mb-3 flex items-center justify-between gap-2">
+        <h3 className={`text-xs font-semibold ${textColors[tone]}`}>{title}</h3>
+        <span className="rounded-full bg-black/20 px-2 py-0.5 text-[10px] text-slate-400">
+          {skills.length}
+        </span>
       </div>
 
-      <div>
-        <h2 className="text-sm font-semibold text-white">{title}</h2>
+      {skills.length === 0 ? (
+        <p className="text-xs text-slate-600">None identified</p>
+      ) : (
+        <div className="flex flex-wrap gap-2">
+          {skills.map((skill, index) => {
+            const name = getSkillName(skill);
+            const evidence = typeof skill === "object" ? skill?.evidence : "";
 
-        {subtitle && <p className="mt-1 text-xs text-slate-500">{subtitle}</p>}
-      </div>
+            return (
+              <span
+                key={`${name}-${index}`}
+                title={evidence || name}
+                className="max-w-full truncate rounded-lg border border-white/[0.07] bg-[#0a0a12] px-2.5 py-1.5 text-xs text-slate-300"
+              >
+                {name}
+              </span>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
 
-/* =========================================================
-   Circular score
-========================================================= */
+function InsightList({ items, emptyText, tone = "green", limit }) {
+  const visibleItems =
+    typeof limit === "number" ? items.slice(0, limit) : items;
 
-function ScoreRing({ score }) {
-  const radius = 82;
+  const tones = {
+    green: "text-emerald-400 bg-emerald-500/10",
+    amber: "text-amber-400 bg-amber-500/10",
+    red: "text-red-400 bg-red-500/10",
+    violet: "text-violet-300 bg-violet-500/10",
+  };
 
-  const circumference = 2 * Math.PI * radius;
+  const Icon =
+    tone === "green"
+      ? CheckCircle2
+      : tone === "red"
+        ? CircleAlert
+        : tone === "amber"
+          ? ArrowUpRight
+          : Sparkles;
 
-  const safeScore = Math.min(Math.max(Number(score) || 0, 0), 100);
-
-  const progress = (safeScore / 100) * circumference;
+  if (!items.length) {
+    return <p className="text-xs text-slate-500">{emptyText}</p>;
+  }
 
   return (
-    <div className="relative flex h-64 w-64 items-center justify-center">
-      {/* Glow */}
-      <div className="absolute inset-8 rounded-full bg-violet-600/20 blur-3xl" />
-
-      <svg
-        width="230"
-        height="230"
-        viewBox="0 0 230 230"
-        className="relative -rotate-90"
-      >
-        {/* Background */}
-        <circle
-          cx="115"
-          cy="115"
-          r={radius}
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="13"
-          className="text-slate-800"
-        />
-
-        {/* Progress */}
-        <circle
-          cx="115"
-          cy="115"
-          r={radius}
-          fill="none"
-          stroke="url(#scoreGradient)"
-          strokeWidth="13"
-          strokeLinecap="round"
-          strokeDasharray={circumference}
-          strokeDashoffset={circumference - progress}
-          className="transition-all duration-1000"
-        />
-
-        <defs>
-          <linearGradient
-            id="scoreGradient"
-            x1="0%"
-            y1="0%"
-            x2="100%"
-            y2="100%"
+    <div className="space-y-2.5">
+      {visibleItems.map((item, index) => (
+        <div key={`${item}-${index}`} className="flex items-start gap-2.5">
+          <div
+            className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-md ${tones[tone]}`}
           >
-            <stop offset="0%" stopColor="#8b5cf6" />
-
-            <stop offset="50%" stopColor="#6366f1" />
-
-            <stop offset="100%" stopColor="#22d3ee" />
-          </linearGradient>
-        </defs>
-      </svg>
-
-      <div className="absolute flex flex-col items-center">
-        <span className="text-5xl font-bold tracking-tight text-white">
-          {safeScore}
-        </span>
-
-        <span className="mt-1 text-xs font-medium uppercase tracking-[0.2em] text-slate-500">
-          Match Score
-        </span>
-
-        <div className="mt-3 flex items-center gap-1.5 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-2.5 py-1 text-[11px] font-medium text-emerald-400">
-          <TrendingUp size={12} />
-          Strong Match
+            <Icon size={12} />
+          </div>
+          <p className="text-xs leading-5 text-slate-300">{item}</p>
         </div>
-      </div>
+      ))}
     </div>
+  );
+}
+
+function TabButton({ active, onClick, children }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={active}
+      className={`whitespace-nowrap rounded-lg px-3.5 py-2 text-xs font-medium transition ${
+        active
+          ? "bg-violet-500/15 text-violet-300"
+          : "text-slate-500 hover:bg-white/[0.04] hover:text-white"
+      }`}
+    >
+      {children}
+    </button>
   );
 }
 
@@ -192,78 +272,31 @@ function ScoreRing({ score }) {
 export default function ResumeAnalysisDashboard({ analysis }) {
   const router = useRouter();
 
-  /*
-    Reference used to capture the complete dashboard
-    for the PDF report.
-  */
-  const reportRef = useRef(null);
-
+  const [activeTab, setActiveTab] = useState("overview");
   const [downloading, setDownloading] = useState(false);
 
-  /*
-    Expected shape:
-
-    {
-      ats: {
-        atsScore: 84,
-        breakdown: {
-          keywordMatch: 75,
-          skillsMatch: 72,
-          experienceAlignment: 100,
-          responsibilityAlignment: 88,
-          educationAlignment: 100,
-          resumeQuality: 90
-        }
-      },
-
-      matched_skills: [],
-      partially_matched_skills: [],
-      missing_skills: [],
-      strengths: [],
-      weaknesses: [],
-      recommendations: [],
-
-      experience: {},
-      education: {},
-      responsibilities: {},
-      resume_quality: {}
-    }
-  */
-
   const data = analysis?.data || analysis || {};
-
   const ats = data.ats || {};
-
   const breakdown = ats.breakdown || {};
 
-  const score = ats.atsScore ?? 0;
+  const score = Number(ats.atsScore ?? 0);
 
   const matchedSkills = data.matched_skills || [];
-
   const partialSkills = data.partially_matched_skills || [];
-
   const missingSkills = data.missing_skills || [];
 
   const strengths = data.strengths || [];
-
   const weaknesses = data.weaknesses || [];
-
   const recommendations = data.recommendations || [];
 
   const responsibilities = data.responsibilities || {};
-
   const experience = data.experience || {};
-
   const education = data.education || {};
-
   const resumeQuality = data.resume_quality || {};
 
   const responsibilityTotal = responsibilities.total || 0;
-
   const responsibilityMatched = responsibilities.matched || 0;
-
   const responsibilityPartial = responsibilities.partially_matched || 0;
-
   const responsibilityMissing = responsibilities.missing || 0;
 
   const responsibilityPercentage =
@@ -276,55 +309,26 @@ export default function ResumeAnalysisDashboard({ analysis }) {
       : 0;
 
   const scoreItems = [
-    {
-      label: "Keyword match",
-      value: breakdown.keywordMatch || 0,
-    },
-
-    {
-      label: "Skills match",
-      value: breakdown.skillsMatch || 0,
-    },
-
-    {
-      label: "Experience",
-      value: breakdown.experienceAlignment || 0,
-    },
-
+    { label: "Keywords", value: breakdown.keywordMatch ?? 0 },
+    { label: "Skills", value: breakdown.skillsMatch ?? 0 },
+    { label: "Experience", value: breakdown.experienceAlignment ?? 0 },
     {
       label: "Responsibilities",
-      value: breakdown.responsibilityAlignment || 0,
+      value: breakdown.responsibilityAlignment ?? 0,
     },
-
-    {
-      label: "Education",
-      value: breakdown.educationAlignment || 0,
-    },
-
-    {
-      label: "Resume quality",
-      value: breakdown.resumeQuality || 0,
-    },
+    { label: "Education", value: breakdown.educationAlignment ?? 0 },
+    { label: "Resume quality", value: breakdown.resumeQuality ?? 0 },
   ];
-
-  /* =========================================================
-     Analyze Again
-  ========================================================= */
 
   const handleAnalyzeAgain = () => {
     router.push("/ats-check");
   };
-
-  /* =========================================================
-     Download PDF Report
-  ========================================================= */
 
   const handleDownloadReport = async () => {
     if (downloading) return;
 
     try {
       setDownloading(true);
-
       await generateAnalysisReport(data);
     } catch (error) {
       console.error("Failed to generate report:", error);
@@ -333,712 +337,558 @@ export default function ResumeAnalysisDashboard({ analysis }) {
     }
   };
 
+  const tabs = [
+    { id: "overview", label: "Overview" },
+    { id: "skills", label: "Skills & role fit" },
+    { id: "quality", label: "Resume quality" },
+  ];
+
   return (
-    <main ref={reportRef} className="min-h-screen bg-[#070711] text-white">
-      {/* =====================================================
-          Background
-      ====================================================== */}
-
+    <main className="min-h-screen bg-[#080810] text-white">
+      {/* Background accents */}
       <div className="pointer-events-none fixed inset-0 overflow-hidden">
-        <div className="absolute -left-40 -top-40 h-96 w-96 rounded-full bg-violet-600/10 blur-[120px]" />
-
-        <div className="absolute right-0 top-1/3 h-96 w-96 rounded-full bg-cyan-500/5 blur-[120px]" />
+        <div className="absolute -left-40 -top-40 h-96 w-96 rounded-full bg-violet-600/[0.07] blur-[120px]" />
+        <div className="absolute right-0 top-1/3 h-96 w-96 rounded-full bg-blue-500/[0.05] blur-[120px]" />
       </div>
 
-      <div className="relative mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-        {/* ===================================================
-            Header
-        ==================================================== */}
-
-        <header className="mb-8 flex flex-col justify-between gap-5 md:flex-row md:items-end">
-          {/* Header title */}
+      <div className="relative mx-auto max-w-6xl px-4 py-6 sm:px-6 lg:px-8">
+        {/* Header */}
+        <header className="mb-6 flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
           <div>
-            <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-violet-500/20 bg-violet-500/10 px-3 py-1.5 text-xs font-medium text-violet-300">
-              <Sparkles size={13} />
-              AI Resume Intelligence
+            <div className="mb-2 flex items-center gap-2 text-xs font-medium text-violet-300">
+              <Sparkles size={14} />
+              INTERPREP AI
+              <span className="text-slate-700">/</span>
+              RESUME INTELLIGENCE
             </div>
 
-            <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">
-              Resume Analysis
+            <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">
+              Your resume insights
             </h1>
 
-            <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-400">
-              See how closely your resume aligns with the target job and exactly
-              where you can improve.
+            <p className="mt-1.5 text-xs leading-5 text-slate-500">
+              A focused view of your job match and the improvements that matter.
             </p>
           </div>
 
-          {/* =================================================
-              Top Right Actions
-          ================================================== */}
-
-          <div className="flex flex-wrap items-center gap-2">
-            {/* Analyze Again */}
+          <div className="flex flex-wrap gap-2">
             <button
               type="button"
               onClick={handleAnalyzeAgain}
-              className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/[0.04] px-4 py-2.5 text-xs font-medium text-slate-300 transition-all duration-200 hover:-translate-y-0.5 hover:border-violet-500/30 hover:bg-violet-500/10 hover:text-white"
+              className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/[0.03] px-3.5 py-2.5 text-xs font-medium text-slate-300 transition hover:border-violet-400/30 hover:bg-violet-500/10 hover:text-white"
             >
-              <ArrowUpRight size={15} />
+              <RotateCcw size={14} />
               Analyze Again
             </button>
 
-            {/* Download Report */}
             <button
               type="button"
               onClick={handleDownloadReport}
               disabled={downloading}
-              className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-violet-500 to-indigo-500 px-4 py-2.5 text-xs font-semibold text-white shadow-lg shadow-violet-500/20 transition-all duration-200 hover:-translate-y-0.5 hover:from-violet-400 hover:to-indigo-400 disabled:cursor-not-allowed disabled:opacity-60"
+              className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-violet-500 to-indigo-500 px-3.5 py-2.5 text-xs font-semibold text-white shadow-lg shadow-violet-500/15 transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {downloading ? (
-                <>
-                  <Loader2 size={15} className="animate-spin" />
-                  Preparing...
-                </>
+                <Loader2 size={14} className="animate-spin" />
               ) : (
-                <>
-                  <ArrowDownToLine size={15} />
-                  Download Report
-                </>
+                <ArrowDownToLine size={14} />
               )}
+              {downloading ? "Preparing..." : "Download Report"}
             </button>
           </div>
         </header>
 
-        {/* ===================================================
-            HERO SCORE
-        ==================================================== */}
-
-        <section className="mb-6 overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-white/[0.07] to-white/[0.02] shadow-2xl shadow-black/20">
-          <div className="grid lg:grid-cols-[360px_1fr]">
-            {/* Score */}
-            <div className="relative flex flex-col items-center justify-center border-b border-white/10 p-8 lg:border-b-0 lg:border-r">
+        {/* Main score hero */}
+        <Panel className="mb-4 overflow-hidden">
+          <div className="grid gap-6 p-5 sm:p-6 lg:grid-cols-[auto_1fr] lg:items-center">
+            <div className="flex items-center gap-5">
               <ScoreRing score={score} />
 
-              <div className="mt-2 text-center">
-                <p className="text-sm font-medium text-white">
-                  Your resume is performing well
-                </p>
-
-                <p className="mt-1 max-w-xs text-xs leading-5 text-slate-500">
-                  Focus on missing skills and partially matched requirements to
-                  improve your score.
-                </p>
-              </div>
-            </div>
-
-            {/* Breakdown */}
-            <div className="p-6 sm:p-8">
-              <div className="mb-6 flex items-center justify-between">
-                <div>
-                  <h2 className="font-semibold text-white">Score breakdown</h2>
-
-                  <p className="mt-1 text-xs text-slate-500">
-                    How InterPrep calculated your match
-                  </p>
+              <div className="max-w-[210px]">
+                <div className="mb-2 inline-flex items-center gap-1.5 rounded-full border border-violet-400/15 bg-violet-500/[0.08] px-2.5 py-1 text-[10px] font-medium text-violet-300">
+                  <Target size={12} />
+                  Resume match
                 </div>
 
-                <BarChart3 size={20} className="text-slate-600" />
+                <h2 className="text-base font-semibold text-white">
+                  {score >= 80
+                    ? "Strong alignment"
+                    : score >= 60
+                      ? "Good foundation"
+                      : score >= 40
+                        ? "Room to improve"
+                        : "Needs refinement"}
+                </h2>
+
+                <p className="mt-1.5 text-xs leading-5 text-slate-500">
+                  {score >= 80
+                    ? "Focus on the remaining gaps to make your application stronger."
+                    : "Use the insights below to target your most important gaps."}
+                </p>
               </div>
+            </div>
 
-              <div className="grid gap-x-8 gap-y-6 sm:grid-cols-2">
-                {scoreItems.map((item) => (
-                  <div key={item.label}>
-                    <div className="mb-2 flex items-center justify-between">
-                      <span className="text-xs text-slate-400">
-                        {item.label}
-                      </span>
-
-                      <span className="text-sm font-semibold text-white">
-                        {item.value}%
-                      </span>
-                    </div>
-
-                    <ProgressBar value={item.value} />
-                  </div>
-                ))}
-              </div>
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+              <MiniStat
+                icon={CheckCircle2}
+                label="Matched skills"
+                value={matchedSkills.length}
+                tone="green"
+              />
+              <MiniStat
+                icon={CircleAlert}
+                label="Partial skills"
+                value={partialSkills.length}
+                tone="amber"
+              />
+              <MiniStat
+                icon={X}
+                label="Missing skills"
+                value={missingSkills.length}
+                tone="red"
+              />
+              <MiniStat
+                icon={Target}
+                label="Role alignment"
+                value={`${responsibilityPercentage}%`}
+                tone="violet"
+              />
             </div>
           </div>
-        </section>
 
-        {/* ===================================================
-            QUICK STATS
-        ==================================================== */}
-
-        <section className="mb-6 grid grid-cols-2 gap-3 md:grid-cols-4">
-          <StatCard
-            icon={CheckCircle2}
-            label="Matched skills"
-            value={matchedSkills.length}
-            description="Strong alignment"
-            type="success"
-          />
-
-          <StatCard
-            icon={CircleAlert}
-            label="Partial skills"
-            value={partialSkills.length}
-            description="Needs clarification"
-            type="warning"
-          />
-
-          <StatCard
-            icon={X}
-            label="Missing skills"
-            value={missingSkills.length}
-            description="Potential gaps"
-            type="danger"
-          />
-
-          <StatCard
-            icon={Target}
-            label="Responsibilities"
-            value={`${responsibilityPercentage}%`}
-            description="Role alignment"
-            type="primary"
-          />
-        </section>
-
-        {/* ===================================================
-            SKILLS
-        ==================================================== */}
-
-        <section className="mb-6 grid gap-6 lg:grid-cols-3">
-          {/* Matched */}
-          <SkillCard
-            title="Matched skills"
-            subtitle="Already demonstrated in your resume"
-            icon={CheckCircle2}
-            iconClass="text-emerald-400"
-            borderClass="border-emerald-500/10"
-            skills={matchedSkills}
-            status="matched"
-          />
-
-          {/* Partial */}
-          <SkillCard
-            title="Partially matched"
-            subtitle="You may have related experience"
-            icon={CircleAlert}
-            iconClass="text-amber-400"
-            borderClass="border-amber-500/10"
-            skills={partialSkills}
-            status="partially_matched"
-          />
-
-          {/* Missing */}
-          <SkillCard
-            title="Missing skills"
-            subtitle="Not found in your resume"
-            icon={X}
-            iconClass="text-red-400"
-            borderClass="border-red-500/10"
-            skills={missingSkills}
-            status="missing"
-          />
-        </section>
-
-        {/* ===================================================
-            EXPERIENCE + EDUCATION
-        ==================================================== */}
-
-        <section className="mb-6 grid gap-6 lg:grid-cols-2">
-          {/* Experience */}
-          <div className="rounded-2xl border border-white/10 bg-white/[0.025] p-6">
-            <SectionHeader
-              icon={BriefcaseBusiness}
-              title="Experience alignment"
-              subtitle="How your experience compares with the role"
-            />
-
-            <div className="grid grid-cols-2 gap-3">
-              <InfoBox
-                label="Required"
-                value={`${experience.required_years ?? 0} yrs`}
-              />
-
-              <InfoBox
-                label="Your experience"
-                value={`${experience.candidate_years ?? 0} yrs`}
-              />
+          {/* Compact score breakdown */}
+          <div className="border-t border-white/[0.07] px-5 py-4 sm:px-6">
+            <div className="mb-3 flex items-center gap-2">
+              <BarChart3 size={15} className="text-slate-500" />
+              <p className="text-xs font-semibold text-slate-300">
+                Match breakdown
+              </p>
+              <span className="text-[10px] text-slate-600">
+                · Score by category
+              </span>
             </div>
 
-            <div className="mt-5 rounded-xl border border-white/10 bg-black/20 p-4">
-              <div className="mb-2 flex items-center gap-2">
-                {experience.status === "matched" ? (
-                  <CheckCircle2 size={16} className="text-emerald-400" />
-                ) : (
-                  <AlertCircle size={16} className="text-amber-400" />
-                )}
+            <div className="grid grid-cols-2 gap-x-5 gap-y-3 sm:grid-cols-3 lg:grid-cols-6">
+              {scoreItems.map((item) => (
+                <div key={item.label}>
+                  <div className="mb-1.5 flex items-center justify-between gap-2">
+                    <span className="truncate text-[10px] text-slate-500">
+                      {item.label}
+                    </span>
+                    <span className="text-[10px] font-semibold text-slate-300">
+                      {item.value}%
+                    </span>
+                  </div>
+                  <ProgressBar value={item.value} />
+                </div>
+              ))}
+            </div>
+          </div>
+        </Panel>
 
-                <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">
-                  Alignment
-                </span>
+        {/* Tabs */}
+        <div className="mb-5 flex gap-1 overflow-x-auto rounded-xl border border-white/[0.07] bg-[#101019] p-1">
+          {tabs.map((tab) => (
+            <TabButton
+              key={tab.id}
+              active={activeTab === tab.id}
+              onClick={() => setActiveTab(tab.id)}
+            >
+              {tab.label}
+            </TabButton>
+          ))}
+        </div>
+
+        {/* =====================================================
+            OVERVIEW TAB
+        ====================================================== */}
+        {activeTab === "overview" && (
+          <div className="space-y-4">
+            <div className="grid gap-4 lg:grid-cols-2">
+              <Panel className="p-5">
+                <SectionTitle
+                  icon={ShieldCheck}
+                  title="What's working"
+                  subtitle="Your strongest signals for this role"
+                />
+
+                <InsightList
+                  items={strengths}
+                  emptyText="No strengths identified."
+                  tone="green"
+                  limit={4}
+                />
+              </Panel>
+
+              <Panel className="p-5">
+                <SectionTitle
+                  icon={Target}
+                  title="Priority improvements"
+                  subtitle="The areas worth addressing first"
+                />
+
+                {weaknesses.length > 0 ? (
+                  <InsightList
+                    items={weaknesses}
+                    emptyText="No major weaknesses identified."
+                    tone="red"
+                    limit={3}
+                  />
+                ) : (
+                  <InsightList
+                    items={recommendations}
+                    emptyText="No additional improvements suggested."
+                    tone="amber"
+                    limit={3}
+                  />
+                )}
+              </Panel>
+            </div>
+
+            <Panel className="p-5">
+              <SectionTitle
+                icon={Zap}
+                title="Your next moves"
+                subtitle="Actionable suggestions from your analysis"
+                action={
+                  <span className="rounded-full border border-violet-400/10 bg-violet-500/10 px-2.5 py-1 text-[10px] text-violet-300">
+                    AI insights
+                  </span>
+                }
+              />
+
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                {recommendations.length === 0 ? (
+                  <p className="text-xs text-slate-500">
+                    No additional recommendations were generated.
+                  </p>
+                ) : (
+                  recommendations.slice(0, 3).map((item, index) => (
+                    <div
+                      key={`${item}-${index}`}
+                      className="rounded-xl border border-white/[0.07] bg-white/[0.02] p-4"
+                    >
+                      <div className="mb-3 flex h-7 w-7 items-center justify-center rounded-lg bg-violet-500/10 text-xs font-semibold text-violet-300">
+                        0{index + 1}
+                      </div>
+                      <p className="text-xs leading-5 text-slate-300">{item}</p>
+                    </div>
+                  ))
+                )}
               </div>
 
-              <p className="text-sm leading-6 text-slate-300">
-                {data.experience_alignment ||
-                  "No experience alignment information available."}
+              {recommendations.length > 3 && (
+                <button
+                  type="button"
+                  onClick={() => setActiveTab("quality")}
+                  className="mt-4 inline-flex items-center gap-1.5 text-xs text-violet-300 transition hover:text-violet-200"
+                >
+                  Explore more insights
+                  <ChevronRight size={14} />
+                </button>
+              )}
+            </Panel>
+
+            <div className="flex items-start gap-2 rounded-xl border border-white/[0.06] bg-white/[0.02] px-4 py-3">
+              <CircleAlert
+                size={14}
+                className="mt-0.5 shrink-0 text-slate-500"
+              />
+              <p className="text-[11px] leading-5 text-slate-500">
+                The match score is an estimate based on the provided resume and
+                job requirements. It does not guarantee an employer's ATS result
+                or an interview.
               </p>
             </div>
           </div>
+        )}
 
-          {/* Education */}
-          <div className="rounded-2xl border border-white/10 bg-white/[0.025] p-6">
-            <SectionHeader
-              icon={GraduationCap}
-              title="Education alignment"
-              subtitle="Education requirement analysis"
-            />
+        {/* =====================================================
+            SKILLS & ROLE FIT TAB
+        ====================================================== */}
+        {activeTab === "skills" && (
+          <div className="space-y-4">
+            <Panel className="p-5">
+              <SectionTitle
+                icon={Sparkles}
+                title="Skill match map"
+                subtitle="See what aligns and where your resume has gaps"
+              />
 
-            <div className="flex items-center gap-4 rounded-2xl border border-white/10 bg-black/20 p-5">
-              <div
-                className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl ${
-                  education.matched ? "bg-emerald-500/10" : "bg-red-500/10"
-                }`}
-              >
-                {education.matched ? (
-                  <CheckCircle2 size={25} className="text-emerald-400" />
-                ) : (
-                  <X size={25} className="text-red-400" />
-                )}
+              <div className="grid gap-3 lg:grid-cols-3">
+                <SkillGroup
+                  title="Matched"
+                  skills={matchedSkills}
+                  tone="green"
+                />
+                <SkillGroup
+                  title="Partially matched"
+                  skills={partialSkills}
+                  tone="amber"
+                />
+                <SkillGroup title="Missing" skills={missingSkills} tone="red" />
+              </div>
+            </Panel>
+
+            <Panel className="p-5">
+              <SectionTitle
+                icon={BriefcaseBusiness}
+                title="Experience alignment"
+                subtitle="Compare your experience with the role's requirements"
+              />
+
+              <div className="grid gap-3 sm:grid-cols-3">
+                <div className="rounded-xl border border-white/[0.07] bg-white/[0.02] p-4">
+                  <p className="text-[10px] uppercase tracking-wider text-slate-500">
+                    Required experience
+                  </p>
+                  <p className="mt-2 text-2xl font-semibold text-white">
+                    {experience.required_years ?? 0}
+                    <span className="ml-1 text-xs font-normal text-slate-500">
+                      years
+                    </span>
+                  </p>
+                </div>
+
+                <div className="rounded-xl border border-white/[0.07] bg-white/[0.02] p-4">
+                  <p className="text-[10px] uppercase tracking-wider text-slate-500">
+                    Your experience
+                  </p>
+                  <p className="mt-2 text-2xl font-semibold text-white">
+                    {experience.candidate_years ?? 0}
+                    <span className="ml-1 text-xs font-normal text-slate-500">
+                      years
+                    </span>
+                  </p>
+                </div>
+
+                <div className="rounded-xl border border-white/[0.07] bg-white/[0.02] p-4">
+                  <p className="text-[10px] uppercase tracking-wider text-slate-500">
+                    Responsibility fit
+                  </p>
+                  <p className="mt-2 text-2xl font-semibold text-violet-300">
+                    {responsibilityPercentage}%
+                  </p>
+                  <div className="mt-2">
+                    <ProgressBar value={responsibilityPercentage} />
+                  </div>
+                </div>
               </div>
 
-              <div>
-                <p className="font-medium text-white">
-                  {education.matched
-                    ? "Education requirement satisfied"
-                    : "Education requirement not satisfied"}
+              {data.experience_alignment && (
+                <p className="mt-4 rounded-xl border border-white/[0.06] bg-black/20 p-4 text-xs leading-5 text-slate-400">
+                  {data.experience_alignment}
                 </p>
+              )}
+            </Panel>
 
-                <p className="mt-1 text-xs leading-5 text-slate-500">
-                  {education.evidence || "No education evidence available."}
-                </p>
+            <Panel className="p-5">
+              <SectionTitle
+                icon={Target}
+                title="Job responsibilities"
+                subtitle={`${responsibilityTotal} requirements assessed`}
+              />
+
+              <div className="mb-4 grid grid-cols-3 gap-2">
+                <div className="rounded-lg bg-emerald-500/[0.06] p-3">
+                  <p className="text-lg font-semibold text-emerald-400">
+                    {responsibilityMatched}
+                  </p>
+                  <p className="text-[10px] text-slate-500">Matched</p>
+                </div>
+                <div className="rounded-lg bg-amber-500/[0.06] p-3">
+                  <p className="text-lg font-semibold text-amber-400">
+                    {responsibilityPartial}
+                  </p>
+                  <p className="text-[10px] text-slate-500">Partial</p>
+                </div>
+                <div className="rounded-lg bg-red-500/[0.06] p-3">
+                  <p className="text-lg font-semibold text-red-400">
+                    {responsibilityMissing}
+                  </p>
+                  <p className="text-[10px] text-slate-500">Missing</p>
+                </div>
               </div>
-            </div>
-          </div>
-        </section>
 
-        {/* ===================================================
-            RESPONSIBILITIES
-        ==================================================== */}
-
-        <section className="mb-6 rounded-2xl border border-white/10 bg-white/[0.025] p-6">
-          <SectionHeader
-            icon={Code2}
-            title="Responsibility alignment"
-            subtitle="How closely your experience matches the actual work"
-          />
-
-          <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
-            <MiniMetric label="Total" value={responsibilityTotal} />
-
-            <MiniMetric
-              label="Matched"
-              value={responsibilityMatched}
-              valueClass="text-emerald-400"
-            />
-
-            <MiniMetric
-              label="Partial"
-              value={responsibilityPartial}
-              valueClass="text-amber-400"
-            />
-
-            <MiniMetric
-              label="Missing"
-              value={responsibilityMissing}
-              valueClass="text-red-400"
-            />
-          </div>
-
-          <div className="space-y-3">
-            {(responsibilities.details || []).map((item, index) => (
-              <div
-                key={`${item.responsibility}-${index}`}
-                className="group rounded-xl border border-white/10 bg-black/20 p-4 transition hover:border-white/20 hover:bg-white/[0.035]"
-              >
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                  <div className="flex gap-3">
-                    <div className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-white/5 text-xs font-semibold text-slate-500">
-                      {String(index + 1).padStart(2, "0")}
-                    </div>
-
-                    <div>
-                      <p className="text-sm font-medium text-white">
+              <div className="space-y-2">
+                {(responsibilities.details || []).map((item, index) => (
+                  <div
+                    key={`${item.responsibility}-${index}`}
+                    className="flex items-start justify-between gap-3 rounded-xl border border-white/[0.06] bg-white/[0.015] p-3"
+                  >
+                    <div className="min-w-0">
+                      <p className="text-xs font-medium leading-5 text-slate-200">
                         {item.responsibility}
                       </p>
-
                       {item.evidence && (
-                        <p className="mt-1.5 text-xs leading-5 text-slate-500">
+                        <p className="mt-1 text-[11px] leading-5 text-slate-500">
                           {item.evidence}
                         </p>
                       )}
                     </div>
+                    <StatusBadge status={item.status} />
                   </div>
-
-                  <StatusBadge status={item.status} />
-                </div>
-              </div>
-            ))}
-          </div>
-        </section>
-
-        {/* ===================================================
-            STRENGTHS / WEAKNESSES
-        ==================================================== */}
-
-        <section className="mb-6 grid gap-6 lg:grid-cols-2">
-          {/* Strengths */}
-          <div className="rounded-2xl border border-emerald-500/10 bg-emerald-500/[0.025] p-6">
-            <SectionHeader
-              icon={Award}
-              title="Your strengths"
-              subtitle="What makes your profile stand out"
-            />
-
-            <div className="space-y-3">
-              {strengths.length === 0 ? (
-                <EmptyState text="No strengths identified." />
-              ) : (
-                strengths.map((item, index) => (
-                  <div
-                    key={index}
-                    className="flex items-start gap-3 rounded-xl border border-emerald-500/10 bg-emerald-500/[0.03] p-3"
-                  >
-                    <div className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-emerald-500/10">
-                      <Check size={14} className="text-emerald-400" />
-                    </div>
-
-                    <p className="text-sm leading-5 text-slate-300">{item}</p>
-                  </div>
-                ))
-              )}
-            </div>
-          </div>
-
-          {/* Weaknesses */}
-          <div className="rounded-2xl border border-red-500/10 bg-red-500/[0.025] p-6">
-            <SectionHeader
-              icon={CircleAlert}
-              title="Potential weaknesses"
-              subtitle="Areas that may reduce your match score"
-            />
-
-            <div className="space-y-3">
-              {weaknesses.length === 0 ? (
-                <EmptyState text="No major weaknesses identified." />
-              ) : (
-                weaknesses.map((item, index) => (
-                  <div
-                    key={index}
-                    className="flex items-start gap-3 rounded-xl border border-red-500/10 bg-red-500/[0.03] p-3"
-                  >
-                    <div className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-red-500/10">
-                      <X size={14} className="text-red-400" />
-                    </div>
-
-                    <p className="text-sm leading-5 text-slate-300">{item}</p>
-                  </div>
-                ))
-              )}
-            </div>
-          </div>
-        </section>
-
-        {/* ===================================================
-            RESUME QUALITY
-        ==================================================== */}
-
-        <section className="mb-6 rounded-2xl border border-white/10 bg-white/[0.025] p-6">
-          <SectionHeader
-            icon={Sparkles}
-            title="Resume quality"
-            subtitle="Structure, readability and presentation"
-          />
-
-          <div className="grid gap-6 lg:grid-cols-[220px_1fr]">
-            <div className="flex flex-col items-center justify-center rounded-2xl border border-white/10 bg-black/20 p-6">
-              <div className="text-5xl font-bold text-white">
-                {resumeQuality.score || 0}
-              </div>
-
-              <div className="mt-1 text-xs uppercase tracking-widest text-slate-500">
-                Quality score
-              </div>
-
-              <div className="mt-4 w-full">
-                <ProgressBar value={resumeQuality.score || 0} />
-              </div>
-            </div>
-
-            <div className="grid gap-6 sm:grid-cols-2">
-              <div>
-                <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-emerald-400">
-                  What works
-                </p>
-
-                <div className="space-y-2">
-                  {(resumeQuality.strengths || []).map((item, index) => (
-                    <div
-                      key={index}
-                      className="flex gap-2 text-xs leading-5 text-slate-400"
-                    >
-                      <Check
-                        size={14}
-                        className="mt-0.5 shrink-0 text-emerald-400"
-                      />
-
-                      {item}
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <div>
-                <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-amber-400">
-                  Improve this
-                </p>
-
-                <div className="space-y-2">
-                  {(resumeQuality.improvements || []).map((item, index) => (
-                    <div
-                      key={index}
-                      className="flex gap-2 text-xs leading-5 text-slate-400"
-                    >
-                      <ArrowUpRight
-                        size={14}
-                        className="mt-0.5 shrink-0 text-amber-400"
-                      />
-
-                      {item}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* ===================================================
-            AI RECOMMENDATIONS
-        ==================================================== */}
-
-        <section className="relative overflow-hidden rounded-3xl border border-violet-500/20 bg-gradient-to-br from-violet-500/[0.09] via-indigo-500/[0.04] to-cyan-500/[0.04] p-6 sm:p-8">
-          {/* Decorative glow */}
-          <div className="pointer-events-none absolute -right-20 -top-20 h-64 w-64 rounded-full bg-violet-500/10 blur-[90px]" />
-
-          <div className="relative">
-            <div className="mb-6 flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
-              <div className="flex items-start gap-3">
-                <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-violet-500/15">
-                  <Lightbulb size={21} className="text-violet-300" />
-                </div>
-
-                <div>
-                  <h2 className="font-semibold text-white">
-                    AI improvement plan
-                  </h2>
-
-                  <p className="mt-1 text-xs text-slate-500">
-                    Practical changes that can improve your match
+                ))}
+                {(responsibilities.details || []).length === 0 && (
+                  <p className="text-xs text-slate-500">
+                    No responsibility details available.
                   </p>
-                </div>
+                )}
               </div>
+            </Panel>
+          </div>
+        )}
 
-              <div className="inline-flex w-fit items-center gap-2 rounded-full border border-violet-500/20 bg-violet-500/10 px-3 py-1.5 text-xs text-violet-300">
-                <Zap size={13} />
-                Personalized
-              </div>
-            </div>
+        {/* =====================================================
+            RESUME QUALITY TAB
+        ====================================================== */}
+        {activeTab === "quality" && (
+          <div className="space-y-4">
+            <div className="grid gap-4 lg:grid-cols-2">
+              <Panel className="p-5">
+                <SectionTitle
+                  icon={BriefcaseBusiness}
+                  title="Experience"
+                  subtitle="How your background aligns with the role"
+                />
 
-            <div className="grid gap-3">
-              {recommendations.length === 0 ? (
-                <EmptyState text="No additional recommendations were generated." />
-              ) : (
-                recommendations.map((item, index) => (
-                  <div
-                    key={index}
-                    className="group flex items-start gap-4 rounded-2xl border border-white/10 bg-black/20 p-4 transition hover:border-violet-500/20 hover:bg-white/[0.035]"
-                  >
-                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-violet-500/10 text-xs font-bold text-violet-300">
-                      {index + 1}
-                    </div>
-
-                    <p className="flex-1 text-sm leading-6 text-slate-300">
-                      {item}
+                <div className="mb-4 grid grid-cols-2 gap-3">
+                  <div className="rounded-xl bg-white/[0.03] p-3">
+                    <p className="text-[10px] text-slate-500">Required</p>
+                    <p className="mt-1 text-xl font-semibold text-white">
+                      {experience.required_years ?? 0} yrs
                     </p>
-
-                    <ChevronRight
-                      size={17}
-                      className="mt-1 text-slate-700 transition group-hover:translate-x-1 group-hover:text-violet-400"
-                    />
                   </div>
-                ))
-              )}
-            </div>
-          </div>
-        </section>
-
-        {/* Footer */}
-        <div className="mt-8 flex items-center justify-center gap-2 text-[11px] text-slate-600">
-          <Sparkles size={12} />
-          InterPrep AI Resume Intelligence
-          <span>•</span>
-          Estimated match score, not a guaranteed ATS result
-        </div>
-      </div>
-    </main>
-  );
-}
-
-/* =========================================================
-   Stat Card
-========================================================= */
-
-function StatCard({ icon: Icon, label, value, description, type }) {
-  const styles = {
-    success: "text-emerald-400 bg-emerald-500/10",
-
-    warning: "text-amber-400 bg-amber-500/10",
-
-    danger: "text-red-400 bg-red-500/10",
-
-    primary: "text-violet-400 bg-violet-500/10",
-  };
-
-  return (
-    <div className="rounded-2xl border border-white/10 bg-white/[0.025] p-4 transition hover:-translate-y-0.5 hover:bg-white/[0.04]">
-      <div
-        className={`mb-4 flex h-9 w-9 items-center justify-center rounded-xl ${styles[type]}`}
-      >
-        <Icon size={17} />
-      </div>
-
-      <p className="text-2xl font-bold text-white">{value}</p>
-
-      <p className="mt-1 text-xs font-medium text-slate-400">{label}</p>
-
-      <p className="mt-1 text-[11px] text-slate-600">{description}</p>
-    </div>
-  );
-}
-
-/* =========================================================
-   Skill Card
-========================================================= */
-
-function SkillCard({
-  title,
-  subtitle,
-  icon: Icon,
-  iconClass,
-  borderClass,
-  skills,
-  status,
-}) {
-  return (
-    <div className={`rounded-2xl border ${borderClass} bg-white/[0.025] p-5`}>
-      <div className="mb-5 flex items-start justify-between">
-        <div>
-          <div className="flex items-center gap-2">
-            <Icon size={17} className={iconClass} />
-
-            <h2 className="text-sm font-semibold text-white">{title}</h2>
-          </div>
-
-          <p className="mt-1 text-[11px] text-slate-600">{subtitle}</p>
-        </div>
-
-        <span className="rounded-full bg-white/5 px-2 py-1 text-xs font-semibold text-slate-400">
-          {skills.length}
-        </span>
-      </div>
-
-      <div className="space-y-2.5">
-        {skills.length === 0 ? (
-          <div className="rounded-xl border border-dashed border-white/10 p-5 text-center text-xs text-slate-600">
-            No items found
-          </div>
-        ) : (
-          skills.map((skill, index) => {
-            const skillName =
-              typeof skill === "string"
-                ? skill
-                : skill?.skill || "Unknown skill";
-
-            const evidence = typeof skill === "object" ? skill?.evidence : null;
-
-            return (
-              <div
-                key={`${skillName}-${index}`}
-                className="rounded-xl border border-white/10 bg-black/20 p-3"
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <p className="text-sm font-medium text-white">
-                      {skillName}
+                  <div className="rounded-xl bg-white/[0.03] p-3">
+                    <p className="text-[10px] text-slate-500">
+                      Your experience
                     </p>
+                    <p className="mt-1 text-xl font-semibold text-white">
+                      {experience.candidate_years ?? 0} yrs
+                    </p>
+                  </div>
+                </div>
 
-                    {evidence && (
-                      <p className="mt-1 text-[11px] leading-5 text-slate-600">
-                        {evidence}
-                      </p>
+                <p className="text-xs leading-5 text-slate-400">
+                  {data.experience_alignment ||
+                    "No experience alignment details available."}
+                </p>
+              </Panel>
+
+              <Panel className="p-5">
+                <SectionTitle
+                  icon={GraduationCap}
+                  title="Education"
+                  subtitle="Education requirement check"
+                />
+
+                <div className="flex items-start gap-3">
+                  <div
+                    className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${
+                      education.matched
+                        ? "bg-emerald-500/10 text-emerald-400"
+                        : "bg-amber-500/10 text-amber-400"
+                    }`}
+                  >
+                    {education.matched ? (
+                      <CheckCircle2 size={18} />
+                    ) : (
+                      <CircleAlert size={18} />
                     )}
                   </div>
 
-                  <StatusBadge status={status} />
+                  <div>
+                    <p className="text-sm font-medium text-white">
+                      {education.matched
+                        ? "Requirement satisfied"
+                        : "Needs further review"}
+                    </p>
+                    <p className="mt-1.5 text-xs leading-5 text-slate-400">
+                      {education.evidence || "No education evidence available."}
+                    </p>
+                  </div>
+                </div>
+              </Panel>
+            </div>
+
+            <Panel className="p-5">
+              <div className="grid gap-5 sm:grid-cols-[150px_1fr] sm:items-center">
+                <div className="rounded-xl border border-white/[0.07] bg-white/[0.02] p-5 text-center">
+                  <FileText size={20} className="mx-auto text-violet-300" />
+                  <p className="mt-3 text-3xl font-bold text-white">
+                    {resumeQuality.score ?? 0}
+                    <span className="text-sm text-slate-500">/100</span>
+                  </p>
+                  <p className="mt-1 text-[10px] text-slate-500">
+                    Resume quality
+                  </p>
+                  <div className="mt-3">
+                    <ProgressBar value={resumeQuality.score ?? 0} />
+                  </div>
+                </div>
+
+                <div className="grid gap-5 sm:grid-cols-2">
+                  <div>
+                    <p className="mb-3 text-xs font-semibold text-emerald-400">
+                      What's working
+                    </p>
+                    <InsightList
+                      items={resumeQuality.strengths || []}
+                      emptyText="No quality strengths available."
+                      tone="green"
+                    />
+                  </div>
+
+                  <div>
+                    <p className="mb-3 text-xs font-semibold text-amber-400">
+                      Worth improving
+                    </p>
+                    <InsightList
+                      items={resumeQuality.improvements || []}
+                      emptyText="No quality improvements suggested."
+                      tone="amber"
+                    />
+                  </div>
                 </div>
               </div>
-            );
-          })
+            </Panel>
+
+            <Panel className="p-5">
+              <SectionTitle
+                icon={Lightbulb}
+                title="Full improvement plan"
+                subtitle="Recommendations generated from your analysis"
+              />
+
+              <InsightList
+                items={recommendations}
+                emptyText="No additional recommendations were generated."
+                tone="violet"
+              />
+
+              {weaknesses.length > 0 && (
+                <div className="mt-5 border-t border-white/[0.07] pt-5">
+                  <p className="mb-3 text-xs font-semibold text-red-400">
+                    Additional gaps
+                  </p>
+                  <InsightList
+                    items={weaknesses}
+                    emptyText="No additional gaps identified."
+                    tone="red"
+                  />
+                </div>
+              )}
+            </Panel>
+          </div>
         )}
+
+        {/* Footer */}
+        <footer className="mt-6 flex flex-wrap items-center justify-center gap-2 pb-3 text-[10px] text-slate-600">
+          <Sparkles size={12} />
+          InterPrep AI
+          <span>·</span>
+          Resume insights, not a guaranteed ATS result
+        </footer>
       </div>
-    </div>
-  );
-}
-
-/* =========================================================
-   Info Box
-========================================================= */
-
-function InfoBox({ label, value }) {
-  return (
-    <div className="rounded-xl border border-white/10 bg-black/20 p-4">
-      <p className="text-[11px] uppercase tracking-wider text-slate-600">
-        {label}
-      </p>
-
-      <p className="mt-2 text-xl font-semibold text-white">{value}</p>
-    </div>
-  );
-}
-
-/* =========================================================
-   Mini Metric
-========================================================= */
-
-function MiniMetric({ label, value, valueClass = "text-white" }) {
-  return (
-    <div className="rounded-xl border border-white/10 bg-black/20 p-4">
-      <p className="text-[11px] uppercase tracking-wider text-slate-600">
-        {label}
-      </p>
-
-      <p className={`mt-2 text-2xl font-bold ${valueClass}`}>{value}</p>
-    </div>
-  );
-}
-
-/* =========================================================
-   Empty State
-========================================================= */
-
-function EmptyState({ text }) {
-  return (
-    <div className="rounded-xl border border-dashed border-white/10 p-5 text-center text-xs text-slate-600">
-      {text}
-    </div>
+    </main>
   );
 }
