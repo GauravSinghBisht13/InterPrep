@@ -150,9 +150,9 @@ export default function Signup() {
         formData.category === "fresher"
           ? ("Fresher" as const)
           : ("Experienced" as const),
-      experience,
-      currentRole: formData.designation.trim() || null,
-      expectedSalary,
+      experience: experience ?? undefined,
+      currentRole: formData.designation.trim() || undefined,
+      expectedSalary: expectedSalary ?? undefined,
       password: formData.password,
     };
 
